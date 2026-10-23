@@ -1,1 +1,1 @@
-{"name": "muay-shop", "version": "1.0.0", "private": true, "type": "module", "scripts": {"dev": "node server.mjs", "test": "node --test tests/domain.test.mjs tests/auth.test.mjs tests/pricing.test.mjs tests/inventory.test.mjs tests/ui.test.mjs"}}
+{"name": "muay-shop", "version": "1.0.0", "private": true, "type": "module", "scripts": {"dev": "node server.mjs", "test": "node --test tests/domain.test.mjs tests/auth.test.mjs tests/pricing.test.mjs tests/inventory.test.mjs tests/ui.test.mjs tests/pull-refresh.test.mjs"}}

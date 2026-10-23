@@ -1,3 +1,4 @@
+import {installPullRefresh} from './pull-refresh.js';
 import {money,totals,aggregate,validPeriod,inPeriod,reportRecords,inventoryCounts,carryForward,nextSaleDate} from './domain.js';
 const root=document.querySelector('#app');
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -5,6 +6,13 @@ const today=()=>new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Bangkok',year:'n
 const names={dashboard:'ภาพรวม',periods:'สถานที่และรอบขาย',daily:'บันทึกรายวัน',stock:'สต็อกและราคาสินค้า',reports:'สรุปเดือน / ปี',settings:'ตั้งค่าและสำรองข้อมูล'};
 let session=null,page='dashboard',data={},filters={year:today().slice(0,4),month:today().slice(5,7),location:''};
 let draft=null;
+const dirtyForms=new Set();
+const formKey=form=>form.id||form.dataset.id;
+function rememberEdit(event){if(event.target.form)dirtyForms.add(formKey(event.target.form));}
+function pendingInputs(){return [...(root.querySelectorAll?.('form')||[])].filter(f=>dirtyForms.has(formKey(f))).map(form=>({key:formKey(form),fields:[...form.elements].filter(el=>el.name).map(el=>({name:el.name,value:el.value}))}));}
+function restoreInputs(saved){for(const entry of saved){const form=[...root.querySelectorAll('form')].find(f=>formKey(f)===entry.key);if(form)for(const field of entry.fields){const input=form.elements.namedItem(field.name);if(input)input.value=field.value;}}}
+async function refreshData(){const saved=pendingInputs();try{await load();if(session){restoreInputs(saved);message('รีเฟรชข้อมูลแล้ว');}}catch(error){message('รีเฟรชไม่สำเร็จ: '+error.message);}}
+
 const tables=['locations','periods','daily_records','stock_items','stock_movements'];
 const loc=id=>data.locations?.find(l=>l.id===id)?.name||'—';
 const period=id=>data.periods?.find(p=>p.id===id);
@@ -57,9 +65,9 @@ function reportsPage(){const rows=reportRecords(data.daily_records,data.periods,
 function settings(){return `<section class="panel"><h2>ข้อมูลร้านของคุณ</h2><p>เชื่อมต่อ: ฐานข้อมูลร้านผ่านเซิร์ฟเวอร์<br>บัญชี: ${esc(session.user?.username)}</p><div class="row"><button data-action="backup">ดาวน์โหลดข้อมูลสำรอง JSON</button><button class="secondary" data-action="logout">ออกจากระบบ</button></div><p class="muted">ไฟล์สำรองรวมสถานที่ รอบขาย บัญชีรายวัน และสต็อกของบัญชีนี้ ไม่รวมรหัสผ่านหรือ key เก็บไว้ในที่ปลอดภัย รุ่นนี้ยังไม่มีหน้ากู้คืนไฟล์อัตโนมัติ</p><p class="notice">การสำรองข้อมูลอัตโนมัติขึ้นกับแพ็กเกจ Supabase ที่เลือก ควรดาวน์โหลดสำเนาเป็นประจำ</p></section>`;}
 function render(){if(!session)return login();root.innerHTML=`<div class="shell"><aside><div class="brand">Muay ✨</div><div class="brand-sub">จัดการร้าน • บัญชี • สต็อก</div><nav>${Object.entries(names).map(([k,v])=>`<button data-page="${k}" class="${page===k?'active':''}">${v}</button>`).join('')}</nav><div class="aside-note">ทุกรอบขาย เห็นภาพชัดขึ้น<br>ข้อมูลส่วนตัวของบัญชีคุณ</div></aside><main><header class="topbar"><div><small>Muay / ร้านของคุณ</small><h1>${names[page]}</h1><span class="muted">จัดการรายละเอียด ให้เห็นผลประกอบการ</span></div><span class="tag">● เข้าสู่ระบบแล้ว</span></header><div class="status" role="status"></div>${({dashboard,periods:periodsPage,daily:dailyPage,stock:stockPage,reports:reportsPage,settings}[page])()}<footer>กำไรตามยอดที่บันทึก · ราคาทุนและราคาขายถูกเก็บแยกตามวัน · ยังไม่รวมรายการที่ไม่ได้ลงบัญชี</footer></main></div>`;}
 function download(name,text,type){const url=URL.createObjectURL(new Blob([text],{type}));const a=document.createElement('a');a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}
-root.addEventListener('input',e=>{const el=e.target;if(!draft||page!=='daily')return;if(el.dataset.list){draft[el.dataset.list][Number(el.dataset.index)][el.dataset.field]=el.dataset.field==='name'?el.value:Number(el.value);}else if(['sale_date','revenue','note'].includes(el.name)){draft[el.name]=el.name==='revenue'?Number(el.value):el.value;}refreshInventoryPreview();});
-root.addEventListener('change',e=>{if(e.target.dataset.productIndex!==undefined){const n=Number(e.target.dataset.productIndex),product=data.stock_items.find(i=>i.id===e.target.value);if(product){const existing=draft.id?data.daily_records.find(r=>r.id===draft.id)?.items.find(i=>i.product_id===product.id):null;draft.items[n]=existing?structuredClone(existing):inventoryItem(product);}else draft.items[n]={name:'',inventory_version:1,opening:0,received:0,closing:0,waste:0,returned:0,quantity:0,cost:0,received_cost:0,price:0};render();return;}if(e.target.name==='period_id'){const id=e.target.value;draft=newDraft(period(id));render();}});
-root.addEventListener('click',async e=>{const b=e.target.closest('button');if(!b)return;try{if(b.dataset.page){page=b.dataset.page;render();return;}const a=b.dataset.action;if(!a)return;
+root.addEventListener('input',e=>{rememberEdit(e);const el=e.target;if(!draft||page!=='daily')return;if(el.dataset.list){draft[el.dataset.list][Number(el.dataset.index)][el.dataset.field]=el.dataset.field==='name'?el.value:Number(el.value);}else if(['sale_date','revenue','note'].includes(el.name)){draft[el.name]=el.name==='revenue'?Number(el.value):el.value;}refreshInventoryPreview();});
+root.addEventListener('change',e=>{rememberEdit(e);if(e.target.dataset.productIndex!==undefined){const n=Number(e.target.dataset.productIndex),product=data.stock_items.find(i=>i.id===e.target.value);if(product){const existing=draft.id?data.daily_records.find(r=>r.id===draft.id)?.items.find(i=>i.product_id===product.id):null;draft.items[n]=existing?structuredClone(existing):inventoryItem(product);}else draft.items[n]={name:'',inventory_version:1,opening:0,received:0,closing:0,waste:0,returned:0,quantity:0,cost:0,received_cost:0,price:0};render();return;}if(e.target.name==='period_id'){const id=e.target.value;draft=newDraft(period(id));render();}});
+root.addEventListener('click',async e=>{const b=e.target.closest('button');if(!b)return;try{if(b.dataset.page){dirtyForms.clear();page=b.dataset.page;render();return;}const a=b.dataset.action;if(!a)return;
  if(a==='logout'){await api('/logout',{method:'POST'});session=null;data={};draft=null;render();return;}
  if(a==='new-day'||a==='period-day'){draft=newDraft(a==='period-day'?period(b.dataset.id):undefined);page='daily';render();}
  if(a==='edit-day'){draft=structuredClone(data.daily_records.find(r=>r.id===b.dataset.id));page='daily';render();}
@@ -76,7 +84,9 @@ root.addEventListener('submit',async e=>{e.preventDefault();const form=e.target,
  if(form.id==='daily'){recalcDraft();for(const item of draft.items)if(item.inventory_version===1)inventoryCounts(item);if(!inPeriod(draft.sale_date,period(draft.period_id)))throw Error('วันที่ขายอยู่นอกรอบที่เลือก');if(!draft.id&&data.daily_records.some(r=>r.period_id===draft.period_id&&r.sale_date===draft.sale_date))throw Error('วันนี้มีรายการแล้ว กรุณาเปิดรายการเดิมเพื่อแก้ไข');const body={period_id:draft.period_id,sale_date:draft.sale_date,revenue:draft.revenue,items:draft.items,expenses:draft.expenses,note:draft.note};await api('/rest/v1/daily_records'+(draft.id?`?id=eq.${draft.id}`:''),{method:draft.id?'PATCH':'POST',body});draft=null;page='dashboard';}
  if(form.id==='stock-item'||form.classList.contains('catalog-form')){await api('/rest/v1/stock_items'+(form.dataset.id?'?id=eq.'+form.dataset.id:''),{method:form.dataset.id?'PATCH':'POST',body:{...fields,cost:Number(fields.cost),price:Number(fields.price)}});draft=null;}
  if(form.id==='movement'){if(!Number(fields.quantity))throw Error('จำนวนต้องไม่เป็นศูนย์');await api('/rest/v1/stock_movements',{method:'POST',body:{...fields,quantity:Number(fields.quantity)}});}
- await load();message('บันทึกเรียบร้อยแล้ว');
+ dirtyForms.delete(formKey(form));await load();message('บันทึกเรียบร้อยแล้ว');
  }catch(err){message(err.message);}finally{if(button)button.disabled=false;}});
 render();
 api('/session').then(async value=>{setSession(value);await load();}).catch(error=>{session=null;login();if(!error.message.includes('กรุณาเข้าสู่ระบบ'))message(error.message);});
+
+installPullRefresh({target:document,indicator:document.querySelector('#pull-refresh'),canRefresh:()=>Boolean(session),onRefresh:refreshData});
