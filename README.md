@@ -36,7 +36,7 @@ delete from public.app_sessions where user_id=(select id from public.app_users w
 
 ## Deploy Vercel
 
-Import source repository ใช้ `node build.mjs` และ output `public` ตาม vercel.json พร้อม Node.js function `api/[...path].mjs` ตั้ง `SUPABASE_URL` กับ `SUPABASE_SECRET_KEY` ใน Vercel Environment Variables แล้ว deploy ไม่ upload .env หรือ Excel ขึ้น repository
+Import source repository ใช้ `node build.mjs` และ output `public` ตาม vercel.json พร้อม Node.js function `api/index.mjs` ตั้ง `SUPABASE_URL` กับ `SUPABASE_SECRET_KEY` ใน Vercel Environment Variables แล้ว deploy ไม่ upload .env หรือ Excel ขึ้น repository
 
 ## ความหมายของยอดในรุ่นแรก
 

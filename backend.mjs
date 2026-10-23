@@ -11,7 +11,9 @@ const canonical=value=>JSON.stringify(value,(_key,v)=>v&&typeof v==='object'&&!A
 const fields={locations:['name'],periods:['location_id','name','starts_on','ends_on','daily_rent','daily_wage'],daily_records:['period_id','sale_date','revenue','items','expenses','note'],stock_items:['name','unit','kind','cost','price'],stock_movements:['stock_item_id','location_id','moved_on','quantity','reason']};
 export function createApi({env=environment,transport=fetch,token=()=>randomBytes(32).toString('hex')}={}){
  return async function handler(req,res){
-  const url=new URL(req.url,'http://localhost');if(!url.pathname.startsWith('/api/'))return false;
+  const url=new URL(req.url,'http://localhost');
+  if(url.searchParams.has('route')){url.pathname='/api/'+url.searchParams.get('route');url.searchParams.delete('route');}
+  if(!url.pathname.startsWith('/api/'))return false;
   const send=(status,body)=>{res.statusCode=status;res.setHeader('Content-Type','application/json; charset=utf-8');res.setHeader('Cache-Control','no-store');res.end(JSON.stringify(body));return true;};
   try{
    if(!['GET','POST','PATCH'].includes(req.method))return send(405,{message:'Method not allowed'});

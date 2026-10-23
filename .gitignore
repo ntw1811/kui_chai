@@ -6,3 +6,6 @@ node_modules/
 public/
 backups/
 imports/
+
+.vercel
+.env*
