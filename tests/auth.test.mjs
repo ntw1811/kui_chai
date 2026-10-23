@@ -48,6 +48,11 @@ test('logout invalidates stored session and clears cookie',async()=>{
 test('missing server secret fails closed without revealing config',async()=>{
  const handler=createApi({env:async()=>({})});const res=response();await handler(request('/api/session'),res);assert.equal(res.statusCode,503);
 });
+test('Vercel rewrite metadata is removed without relaxing owner restrictions',async()=>{
+ const calls=[];const handler=createApi({env,transport:async(url,opts)=>{calls.push(url);return reply(url.includes('app_sessions?')?[{user_id:user.id}]:url.includes('app_users?')?[user]:[]);}});
+ const res=response();await handler(request('/api/index?route=rest/v1/locations&path=rest%2Fv1%2Flocations&limit=500&offset=0','GET',{}, {cookie:'muay_session='+raw}),res);
+ assert.equal(res.statusCode,200);const query=new URL(calls.at(-1)).searchParams;assert.equal(query.get('owner_id'),'eq.'+user.id);assert.equal(query.has('path'),false);assert.equal(query.has('route'),false);
+});
 test('daily API recalculates sales and opening quantity instead of trusting client',async()=>{
  const writes=[];
  const handler=createApi({env,transport:async(url,opts)=>{

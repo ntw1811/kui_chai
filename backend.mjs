@@ -13,6 +13,8 @@ export function createApi({env=environment,transport=fetch,token=()=>randomBytes
  return async function handler(req,res){
   const url=new URL(req.url,'http://localhost');
   if(url.searchParams.has('route')){url.pathname='/api/'+url.searchParams.get('route');url.searchParams.delete('route');}
+  // Vercel adds the matched wildcard as query metadata even after a rewrite.
+  url.searchParams.delete('path');
   if(!url.pathname.startsWith('/api/'))return false;
   const send=(status,body)=>{res.statusCode=status;res.setHeader('Content-Type','application/json; charset=utf-8');res.setHeader('Cache-Control','no-store');res.end(JSON.stringify(body));return true;};
   try{
