@@ -14,4 +14,10 @@ export function totals(record){const cost=(record.items||[]).reduce((s,i)=>s+(i.
 export function aggregate(records){return records.reduce((s,r)=>{const t=totals(r);for(const k of Object.keys(s))s[k]+=t[k];return s;},{revenue:0,cost:0,expense:0,profit:0});}
 export function validPeriod(start,end){return /^\d{4}-\d{2}-\d{2}$/.test(start)&&/^\d{4}-\d{2}-\d{2}$/.test(end)&&start<=end;}
 export function inPeriod(date,p){return date>=p.starts_on&&date<=p.ends_on;}
+export function nextSaleDate(period,records){
+ const used=new Set(records.filter(r=>r.period_id===period.id).map(r=>r.sale_date));
+ const date=new Date(period.starts_on+'T00:00:00Z');
+ while(date.toISOString().slice(0,10)<=period.ends_on){const day=date.toISOString().slice(0,10);if(!used.has(day))return day;date.setUTCDate(date.getUTCDate()+1);}
+ return null;
+}
 export function reportRecords(records,periods,{month,year,location}){const ids=new Set(periods.filter(p=>!location||p.location_id===location).map(p=>p.id));return records.filter(r=>ids.has(r.period_id)&&(!year||r.sale_date.startsWith(year))&&(!month||r.sale_date.slice(5,7)===month));}

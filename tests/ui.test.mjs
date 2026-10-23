@@ -17,6 +17,7 @@ test('daily form renders inventory fields, carries previous balance, and submits
  await listeners.click({target:{closest:()=>({dataset:{action:'new-day'}})}});
  for(const label of ['ยกมา','รับเพิ่ม','เหลือปลายวัน','เสีย/แจก','ส่งคืน','ขายได้'])assert.ok(root.innerHTML.includes(label));
  assert.match(root.innerHTML,/data-opening-index="0">25</);
+ assert.match(root.innerHTML,/name="sale_date" type="date" value="2020-01-02"/);
  for(const [field,value] of [['received','100'],['closing','20'],['waste','5'],['returned','0']])listeners.input({target:{dataset:{list:'items',index:'0',field},value}});
  await listeners.submit({preventDefault(){},target:{id:'daily',querySelector:()=>({disabled:false}),classList:{contains:()=>false}}});
  assert.equal(writes[0].items[0].quantity,100);assert.equal(writes[0].items[0].opening,25);assert.equal(writes[0].items[0].closing,20);
