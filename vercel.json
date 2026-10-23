@@ -1,1 +1,1 @@
-{"buildCommand":"node build.mjs","outputDirectory":"public","cleanUrls":true,"functions":{"api/[...path].mjs":{"includeFiles":"{backend.mjs,pricing.mjs}"}}}
+{"buildCommand": "node build.mjs", "outputDirectory": "public", "cleanUrls": true, "functions": {"api/[...path].mjs": {"includeFiles": "{backend.mjs,pricing.mjs}"}}, "framework": null}
